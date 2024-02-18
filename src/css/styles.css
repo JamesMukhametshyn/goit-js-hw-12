@@ -15,7 +15,7 @@
   font-weight: 400;
 
   color: #242424;
-  background-color: rgba(255, 255, 255, 0.87);
+  background-color: rgba(210, 210, 210, 0.87);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -30,27 +30,30 @@
 
 .loader {
   width: 48px;
-    height: 48px;
-    border: 3px solid #FFF;
-    border-radius: 50%;
-    display: inline-block;
-    position: relative;
-    box-sizing: border-box;
-    animation: rotation 1s linear infinite;
-
+  height: 48px;
+  border: 5px solid #3c75b1;
+  border-radius: 50%;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  animation: pulse 1s linear infinite;
 }
 
-.loader::after {
+.loader:after {
   content: '';
-    box-sizing: border-box;
-    position: absolute;
-    left: 0;
-    top: 0;
-    background: #FF3D00;
-    width: 16px;
-    height: 16px;
-    transform: translate(-50%, 50%);
-    border-radius: 50%;
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border: 5px solid #260cb9;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: scaleUp 1s linear infinite;
 }
 
 @keyframes rotation {
