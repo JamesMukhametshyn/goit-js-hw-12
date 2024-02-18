@@ -1,169 +1,187 @@
-import axios from 'axios';
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
+import Axios from 'axios';
 
 const form = document.querySelector('.form');
-const gallery = document.querySelector('.gallery');
+const searchInput = document.querySelector('.input-name');
 const loader = document.querySelector('.loader');
-const loadBtn = document.querySelector('.more');
-const lightBox = new SimpleLightbox('.gallery-link');
+const gallery = document.querySelector('.gallery');
+const loadBtn = document.querySelector('.load-btn');
+let currentSearchQuery = '';
+let totalResult = 0;
+let totalHits = 0;
 let page = 1;
-let perPage = 15;
-let searchQuery;
-loadBtn.style.display = 'none';
-loader.style.display = 'none';
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  page = 1;
-  loadBtn.style.display = 'none';
-  gallery.innerHTML = '';
-  searchQuery = form.elements.search.value.trim();
+const axios = Axios.create({
+  baseURL: 'https://pixabay.com',
+  params: {
+    key: '42310325-d8e2b88bd4f4d7db9639050a5',
+    image_type: 'photo',
+    orientation: 'horizontal',
+    safesearch: true,
+    per_page: 15,
+    page: 1,
+  },
+});
+
+let galleryLightbox = new SimpleLightbox('.image-link', {
+  captionsData: 'alt',
+  captionDelay: 250,
+});
+
+async function getPhoto(event) {
+  event.preventDefault();
+
+  const searchQuery = searchInput.value.trim();
+
   if (searchQuery === '') {
     iziToast.show({
-      message: 'Please write search image',
-      messageColor: '#FAFAFB',
-      backgroundColor: '#EF4040',
-      position: 'topRight',
+      title: 'Error',
+      message: 'Please enter a search query',
     });
     return;
   }
 
-  loader.style.display = 'inline-block';
+  gallery.innerHTML = '';
+  page = 1;
+  totalResult = 0;
+  hideLoadBtn();
+  loader.classList.add('visible');
+
   try {
-    const { hits, totalHits } = await fetchImage(searchQuery, page);
-    if (totalHits === 0) {
-      iziToast.show({
-        message:
-          'Sorry, there are no images matching your search query. Please try again!',
-        messageColor: '#FAFAFB',
-        backgroundColor: '#EF4040',
-        position: 'topRight',
-      });
-      loader.style.display = 'none';
-      return;
-    }
-    renderGallery(hits);
-    if (totalHits < perPage) {
-      notification();
-    } else {
-      loadBtn.style.display = 'block';
-    }
-  } catch (error) {
-    iziToast.show({
-      message: `Sorry, ${error}`,
-      messageColor: '#FAFAFB',
-      backgroundColor: '#EF4040',
-      position: 'topRight',
+    const response = await axios.get('/api/', {
+      params: { q: searchQuery },
     });
+    const data = response.data;
+    totalHits = data.totalHits;
+    totalResult = renderPhotos(data.hits, totalHits, totalResult);
+  } catch (error) {
+    console.log('Error fetching data:', error);
   } finally {
-    form.reset();
+    loader.classList.remove('visible');
   }
-});
+}
 
-loadBtn.addEventListener('click', async () => {
-  page += 1;
-
-  loader.style.display = 'inline-block';
-  try {
-    const { hits, totalHits } = await fetchImage(searchQuery, page);
-    renderGallery(hits);
-    scroll();
-    if (perPage * page > totalHits) {
-      notification();
-    }
-  } catch (error) {
+function renderPhotos(photos, totalHits, totalResult) {
+  if (photos.length === 0) {
     iziToast.show({
-      message: `Sorry, ${error}`,
-      messageColor: '#FAFAFB',
-      backgroundColor: '#EF4040',
-      position: 'bottomCenter',
+      message:
+        'Sorry, there are no images matching your search query. Please try again!',
+      backgroundColor: 'red',
+      messageColor: 'white',
+      messageSize: '25',
     });
+    return;
   }
-});
 
-async function fetchImage(searchQuery, page) {
-  const searchParams = {
-    key: '42093583-bfe36716eb3593f6644c471e3',
-    q: searchQuery,
-    page,
-    image_type: 'photo',
-    orientation: 'horizontal',
-    safesearch: true,
-    per_page: perPage,
-  };
-  const urlparams = new URLSearchParams(searchParams);
-  const { data } = await axios.get(`https://pixabay.com/api/?${urlparams}`);
-  return data;
+  photos.forEach(photo => {
+    const {
+      webformatURL,
+      largeImageURL,
+      tags,
+      likes,
+      views,
+      comments,
+      downloads,
+    } = photo;
+    const photoElement = makeMarkup(
+      webformatURL,
+      largeImageURL,
+      tags,
+      likes,
+      views,
+      comments,
+      downloads
+    );
+    gallery.insertAdjacentHTML('beforeend', photoElement);
+  });
+
+  totalResult += photos.length;
+
+  galleryLightbox.refresh();
+
+  isLoadMore(totalResult, totalHits);
+  return totalResult;
 }
 
-function renderGallery(images) {
-  const markup = images
-    .map(
-      ({
-        largeImageURL,
-        webformatURL,
-        tags,
-        likes,
-        views,
-        comments,
-        downloads,
-      }) => `<li class="gallery-item">
-    <a class="gallery-link" href="${largeImageURL}" >
-      <img
-        class="gallery-image"
-        src="${webformatURL}"
-        alt="${tags}"
-      width = "360"
-      />
+function makeMarkup(
+  webformatURL,
+  largeImageURL,
+  tags,
+  likes,
+  views,
+  comments,
+  downloads
+) {
+  return `<li class="photo">
+  <div class="photo-card">
+    <a class="image-link" data-lightbox="image" href="${largeImageURL}">
+    <img class="gallery-image" data-source="${largeImageURL}"  src="${webformatURL}" alt="${tags}"></img>
     </a>
-    <div class="img-text">
-    <div class="img-info">
-    <h3>Likes</h3>
-    <p> ${likes}</p>
     </div>
-    <div class="img-info">
-    <h3>Views</h3>
-    <p> ${views}</p>
-    </div>
-       <div class="img-info">
-    <h3>Comments</h3>
-    <p> ${comments}</p>
-    </div>
-       <div class="img-info">
-    <h3>Downloads</h3>
-    <p> ${downloads}</p>
-    </div>
-      </div>
-  </li>`
-    )
-    .join('');
+      <div class="description">
+        <p class="description-item"> Likes ${likes}</p>
+        <p class="description-item"> Views ${views}</p>
+        <p class="description-item"> Comments ${comments}</p>
+        <p class="description-item"> Downloads ${downloads}</p>
 
-  gallery.insertAdjacentHTML('beforeend', markup);
-  lightBox.refresh();
-
-  loader.style.display = 'none';
+    </div>
+  </li>`;
 }
 
-function notification() {
-  iziToast.show({
-    message: 'We are sorry, but you have reached the end of search results.',
-    messageColor: '#FAFAFB',
-    backgroundColor: '#1DB8F5',
-    position: 'topRight',
-  });
-  loadBtn.style.display = 'none';
-  loader.style.display = 'none';
+async function onLoadMoreClick() {
+  hideLoadBtn();
+  loader.classList.add('visible');
+
+  const searchQuery = searchInput.value.trim();
+
+  try {
+    const response = await axios.get('/api/', {
+      params: { q: searchQuery, page: (page += 1) },
+    });
+    const data = response.data;
+
+    totalHits = data.totalHits;
+    totalResult = renderPhotos(data.hits, totalHits, totalResult);
+    smoothScrollToNextGallery();
+  } catch (error) {
+    console.log('Error fetching data:', error);
+  } finally {
+    loader.classList.remove('visible');
+  }
 }
 
-function scroll() {
-  const listItem = document.querySelector('.gallery-item');
-  const heightScroll = listItem.getBoundingClientRect().height * 2;
-  window.scrollBy({
-    top: heightScroll,
-    left: 0,
-    behavior: 'smooth',
-  });
+function isLoadMore(totalResult, totalHits) {
+  if (totalResult >= totalHits) {
+    iziToast.show({
+      message: "We're sorry, but you've reached the end of search results.",
+      backgroundColor: '#125487',
+      messageColor: 'white',
+      messageSize: '25',
+    });
+    hideLoadBtn();
+    return;
+  } else {
+    showLoadBtn();
+  }
 }
+
+function smoothScrollToNextGallery() {
+  const galleryItemHeight = document
+    .querySelector('.photo')
+    .getBoundingClientRect().height;
+  window.scrollBy({ top: galleryItemHeight * 2, behavior: 'smooth' });
+}
+
+function showLoadBtn() {
+  loadBtn.style.visibility = 'visible';
+}
+
+function hideLoadBtn() {
+  loadBtn.style.visibility = 'hidden';
+}
+
+form.addEventListener('submit', getPhoto);
+loadBtn.addEventListener('click', onLoadMoreClick);
